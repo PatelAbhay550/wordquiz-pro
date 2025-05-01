@@ -15,6 +15,7 @@
     "next": "15.2.4",
     "react": "^19.0.0",
     "react-chemdoodle": "^0.0.7",
+    "react-cookie": "^8.0.1",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
     "react-tooltip": "^5.28.1",
