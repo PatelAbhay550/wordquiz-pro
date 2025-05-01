@@ -186,20 +186,30 @@ export default function WordleGame() {
   };
 
   const getKeyColor = (key) => {
-    for (let i = 0; i < currentRow; i++) {
+    // Check all guesses up to the current row
+    for (let i = 0; i <= currentRow; i++) {
       const guess = guesses[i];
       if (!guess) continue;
       
-      if (targetWord.includes(key)) {
-        if (targetWord[guess.indexOf(key)] === key) {
-          return 'bg-green-500 hover:bg-green-600 text-white';
+      // Only consider keys that are in the current guess
+      if (guess.includes(key)) {
+        // Check if the letter is in the correct position in any guess
+        if (targetWord.includes(key)) {
+          // Check if this exact position is correct in any guess
+          for (let j = 0; j < guess.length; j++) {
+            if (guess[j] === key && targetWord[j] === key) {
+              return 'bg-green-500 hover:bg-green-600 text-white';
+            }
+          }
+          // If not correct position but exists in word
+          return 'bg-yellow-500 hover:bg-yellow-600 text-white';
+        } else {
+          // Letter not in word at all
+          return 'bg-gray-500 hover:bg-gray-600 text-white';
         }
-        return 'bg-yellow-500 hover:bg-yellow-600 text-white';
-      } else if (guess.includes(key)) {
-        return 'bg-gray-500 hover:bg-gray-600 text-white';
       }
     }
-    return '';
+    return ''; // Default color if key hasn't been guessed yet
   };
 
   if (loading) {
