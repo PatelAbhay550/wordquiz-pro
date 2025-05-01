@@ -1,11 +1,10 @@
 "use client"
 import { useState, useEffect, useCallback } from 'react';
-import { FaBackspace, FaCheck, FaRedo } from 'react-icons/fa';
-
+import { FaBackspace, FaCheck, FaRedo, FaQuestionCircle, FaTimes } from 'react-icons/fa';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
-
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
+import { useCookies } from 'react-cookie';
 
 const MAX_ATTEMPTS = 6;
 const WORD_LENGTH = 5;
@@ -27,6 +26,16 @@ export default function WordleGame() {
   const [shake, setShake] = useState(false);
   const [winAnimation, setWinAnimation] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [cookies, setCookie] = useCookies(['hasSeenInstructions']);
+
+  // Show instructions on first visit
+  useEffect(() => {
+    if (!cookies.hasSeenInstructions) {
+      setShowInstructions(true);
+      setCookie('hasSeenInstructions', 'true', { path: '/', maxAge: 60 * 60 * 24 * 365 }); // Expires in 1 year
+    }
+  }, [cookies.hasSeenInstructions, setCookie]);
 
   // Load word list and today's word
   useEffect(() => {
@@ -202,7 +211,73 @@ export default function WordleGame() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center py-8 px-4">
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center py-8 px-4 relative">
+      {/* How to Play Button (Fixed position) */}
+      <button
+        onClick={() => setShowInstructions(true)}
+        className="fixed top-4 right-4 p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+        aria-label="How to play"
+      >
+        <FaQuestionCircle size={24} />
+      </button>
+
+      {/* Instructions Modal */}
+      {showInstructions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">How to Play WordQuiz Pro</h2>
+              <button
+                onClick={() => setShowInstructions(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg">Guess the Word</h3>
+                <p>You have {MAX_ATTEMPTS} attempts to guess a {WORD_LENGTH}-letter word.</p>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-lg">Feedback Colors</h3>
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center text-white font-bold">R</div>
+                  <span>Letter is correct and in the right position</span>
+                </div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-8 h-8 bg-yellow-500 rounded flex items-center justify-center text-white font-bold">E</div>
+                  <span>Letter is correct but in the wrong position</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-gray-500 rounded flex items-center justify-center text-white font-bold">A</div>
+                  <span>Letter is not in the word at all</span>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-lg">Daily Challenge</h3>
+                <p>Everyone gets the same word each day. Come back tomorrow for a new challenge!</p>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-lg">Practice Mode</h3>
+                <p>When not playing the daily word, you can practice with random words.</p>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setShowInstructions(false)}
+              className="mt-6 w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
       <h1 className="text-4xl font-bold mb-8 text-gray-800">WordQuiz Pro</h1>
       
       <div className="mb-2 text-sm text-gray-600">
