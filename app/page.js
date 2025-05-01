@@ -5,6 +5,7 @@ import { FaBackspace, FaCheck, FaRedo } from 'react-icons/fa';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
+import Link from 'next/link';
 
 const MAX_ATTEMPTS = 6;
 const WORD_LENGTH = 5;
@@ -368,7 +369,7 @@ export default function WordleGame() {
           </KeyboardKey>
         </div>
         <footer className="mt-10 text-center text-sm text-gray-400">
-          Made with ❤️ by <span className="font-semibold text-gray-600">Abhay Raj Patel</span>
+          Made with ❤️ by <Link href="https://github.com/PatelAbhay550" alt="abhay patel github"><span className="font-semibold text-gray-600">Abhay Raj Patel</span></Link>
         </footer>
       </div>
     </div>
