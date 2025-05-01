@@ -1,6 +1,6 @@
 # WordQuiz Pro - A Wordle Clone
 
-![WordQuiz Pro Screenshot](./public/screenshot.png)
+![WordQuiz Pro Screenshot](https://github.com/PatelAbhay550/wordquiz-pro/blob/main/public/wordquiz-pro.png?raw=true)
 
 ## Overview
 
