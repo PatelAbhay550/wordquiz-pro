@@ -22,7 +22,7 @@ export const metadata = {
     siteName: "WordQuiz Pro",
     images: [
       {
-        url: "https://placehold.co/600x400?text=WordQuiz+Pro",
+        url: "https://raw.githubusercontent.com/PatelAbhay550/wordquiz-pro/refs/heads/main/public/wordquiz%20pro.png",
         width: 1200,
         height: 630,
         alt: "WordQuiz Pro",
