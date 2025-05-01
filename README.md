@@ -28,5 +28,5 @@ WordQuiz Pro is a Wordle-inspired word guessing game built with Next.js, Tailwin
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/wordquiz-pro.git
+   git clone https://github.com/PatelAbhay550/wordquiz-pro.git
    cd wordquiz-pro
