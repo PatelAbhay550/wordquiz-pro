@@ -15,6 +15,65 @@ const getTodayKey = () => {
   return today.toISOString().split('T')[0];
 };
 
+const WordDetailsPopup = ({ details, onClose }) => {
+  if (!details) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-gray-800">{details.word}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <FaTimes size={20} />
+          </button>
+        </div>
+        
+        {details.phonetic && (
+          <div className="mb-4">
+            <span className="text-gray-600">Pronunciation: </span>
+            <span className="font-mono">{details.phonetic}</span>
+          </div>
+        )}
+        
+        {details.hindi && (
+          <div className="mb-4 p-3 bg-blue-50 rounded">
+            <h3 className="font-semibold text-blue-800 mb-1">Hindi Meaning</h3>
+            <p className="text-lg">{details.hindi}</p>
+          </div>
+        )}
+        
+        <div className="space-y-4">
+          {details.meanings?.map((meaning, index) => (
+            <div key={index}>
+              <h3 className="font-semibold text-lg capitalize">{meaning.partOfSpeech}</h3>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                {meaning.definitions?.slice(0, 3).map((def, defIndex) => (
+                  <li key={defIndex}>
+                    <p>{def.definition}</p>
+                    {def.example && (
+                      <p className="text-gray-600 italic">Example: "{def.example}"</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        
+        <button
+          onClick={onClose}
+          className="mt-6 w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function WordleGame() {
   const [targetWord, setTargetWord] = useState('');
   const [wordList, setWordList] = useState([]);
@@ -27,15 +86,62 @@ export default function WordleGame() {
   const [winAnimation, setWinAnimation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [wordDetails, setWordDetails] = useState(null);
+  const [completedToday, setCompletedToday] = useState(false);
   const [cookies, setCookie] = useCookies(['hasSeenInstructions']);
+
+  const fetchWordDetails = async (word) => {
+    try {
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+      const data = await response.json();
+      
+      if (data && data[0]) {
+        const details = {
+          word: word,
+          meanings: data[0].meanings,
+          phonetic: data[0].phonetic,
+          hindi: null
+        };
+        
+        try {
+          const hindiResponse = await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|hi`);
+          const hindiData = await hindiResponse.json();
+          if (hindiData && hindiData.responseData) {
+            details.hindi = hindiData.responseData.translatedText;
+          }
+        } catch (hindiError) {
+          console.log("Couldn't fetch Hindi translation");
+        }
+        
+        setWordDetails(details);
+        return details;
+      }
+    } catch (error) {
+      console.error("Error fetching word details:", error);
+    }
+    return null;
+  };
 
   // Show instructions on first visit
   useEffect(() => {
     if (!cookies.hasSeenInstructions) {
       setShowInstructions(true);
-      setCookie('hasSeenInstructions', 'true', { path: '/', maxAge: 60 * 60 * 24 * 365 }); // Expires in 1 year
+      setCookie('hasSeenInstructions', 'true', { path: '/', maxAge: 60 * 60 * 24 * 365 });
     }
   }, [cookies.hasSeenInstructions, setCookie]);
+
+  // Check for completed game
+  useEffect(() => {
+    const todayKey = getTodayKey();
+    const completed = localStorage.getItem(`completed_${todayKey}`);
+    if (completed) {
+      setCompletedToday(true);
+      const savedDetails = localStorage.getItem(`details_${todayKey}`);
+      if (savedDetails) {
+        setWordDetails(JSON.parse(savedDetails));
+      }
+    }
+  }, []);
 
   // Load word list and today's word
   useEffect(() => {
@@ -55,10 +161,8 @@ export default function WordleGame() {
         const docSnap = await getDoc(wordDocRef);
         
         if (docSnap.exists()) {
-          // Use existing word
           setTargetWord(docSnap.data().word.toUpperCase());
         } else {
-          // Select new word and save to Firebase
           const randomWord = words[Math.floor(Math.random() * words.length)].toUpperCase();
           await setDoc(wordDocRef, { 
             word: randomWord,
@@ -69,7 +173,6 @@ export default function WordleGame() {
         }
       } catch (error) {
         console.error('Error initializing game:', error);
-        // Fallback if Firebase fails
         const fallbackWords = ['REACT', 'NEXTJS', 'HOOKS', 'GAMES', 'CODER'];
         setWordList(fallbackWords);
         setTargetWord(fallbackWords[Math.floor(Math.random() * fallbackWords.length)].toUpperCase());
@@ -81,9 +184,28 @@ export default function WordleGame() {
     initializeGame();
   }, []);
 
+  const handleGameCompletion = async (isWin) => {
+    const todayKey = getTodayKey();
+    localStorage.setItem(`completed_${todayKey}`, 'true');
+    setCompletedToday(true);
+    
+    const details = await fetchWordDetails(targetWord);
+    if (details) {
+      localStorage.setItem(`details_${todayKey}`, JSON.stringify(details));
+    }
+    
+    setGameOver(true);
+    if (isWin) {
+      setWinAnimation(true);
+      setMessage('You won!');
+    } else {
+      setMessage(`Game over! The word was ${targetWord}`);
+    }
+  };
+
   // Handle keyboard input
   const handleKeyDown = useCallback((e) => {
-    if (gameOver || loading) return;
+    if (gameOver || loading || completedToday) return;
 
     const key = e.key.toUpperCase();
 
@@ -99,17 +221,14 @@ export default function WordleGame() {
       }
 
       if (currentGuess === targetWord) {
-        setGameOver(true);
-        setWinAnimation(true);
-        setMessage('You won!');
+        handleGameCompletion(true);
         setGuesses(prev => {
           const newGuesses = [...prev];
           newGuesses[currentRow] = currentGuess;
           return newGuesses;
         });
       } else if (currentRow === MAX_ATTEMPTS - 1) {
-        setGameOver(true);
-        setMessage(`Game over! The word was ${targetWord}`);
+        handleGameCompletion(false);
         setGuesses(prev => {
           const newGuesses = [...prev];
           newGuesses[currentRow] = currentGuess;
@@ -138,7 +257,7 @@ export default function WordleGame() {
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }
-  }, [currentGuess, currentRow, gameOver, targetWord, wordList, loading]);
+  }, [currentGuess, currentRow, gameOver, targetWord, wordList, loading, completedToday]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -146,7 +265,6 @@ export default function WordleGame() {
   }, [handleKeyDown]);
 
   const resetGame = () => {
-    // Only allow reset if not using the daily word
     if (!wordList.includes(targetWord.toLowerCase())) {
       const randomWord = wordList[Math.floor(Math.random() * wordList.length)].toUpperCase();
       setTargetWord(randomWord);
@@ -157,6 +275,8 @@ export default function WordleGame() {
     setGameOver(false);
     setMessage('');
     setWinAnimation(false);
+    setWordDetails(null);
+    setCompletedToday(false);
   };
 
   const getTileColor = (letter, index, guess) => {
@@ -186,30 +306,24 @@ export default function WordleGame() {
   };
 
   const getKeyColor = (key) => {
-    // Check all guesses up to the current row
     for (let i = 0; i <= currentRow; i++) {
       const guess = guesses[i];
       if (!guess) continue;
       
-      // Only consider keys that are in the current guess
       if (guess.includes(key)) {
-        // Check if the letter is in the correct position in any guess
         if (targetWord.includes(key)) {
-          // Check if this exact position is correct in any guess
           for (let j = 0; j < guess.length; j++) {
             if (guess[j] === key && targetWord[j] === key) {
               return 'bg-green-500 hover:bg-green-600 text-white';
             }
           }
-          // If not correct position but exists in word
           return 'bg-yellow-500 hover:bg-yellow-600 text-white';
         } else {
-          // Letter not in word at all
           return 'bg-gray-500 hover:bg-gray-600 text-white';
         }
       }
     }
-    return ''; // Default color if key hasn't been guessed yet
+    return '';
   };
 
   if (loading) {
@@ -222,7 +336,7 @@ export default function WordleGame() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center py-8 px-4 relative">
-      {/* How to Play Button (Fixed position) */}
+      {/* How to Play Button */}
       <button
         onClick={() => setShowInstructions(true)}
         className="fixed top-4 right-4 p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
@@ -288,6 +402,14 @@ export default function WordleGame() {
         </div>
       )}
 
+      {/* Word Details Popup */}
+      {wordDetails && (
+        <WordDetailsPopup 
+          details={wordDetails} 
+          onClose={() => setWordDetails(null)} 
+        />
+      )}
+
       <h1 className="text-4xl font-bold mb-8 text-gray-800">WordQuiz Pro</h1>
       
       <div className="mb-2 text-sm text-gray-600">
@@ -316,7 +438,25 @@ export default function WordleGame() {
         </div>
       )}
 
-      <div className="mb-8 grid grid-rows-6 gap-2">
+      <div className="mb-8 grid grid-rows-6 gap-2 relative">
+        {completedToday && (
+          <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center z-10 rounded-lg">
+            <div className="bg-white p-4 rounded-lg text-center">
+              <p className="text-lg font-semibold mb-2">You've completed today's WordQuiz!</p>
+              <p className="mb-4">Come back tomorrow for a new challenge!</p>
+              <button
+                onClick={() => {
+                  setWordDetails(null);
+                  resetGame();
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Practice with Random Words
+              </button>
+            </div>
+          </div>
+        )}
+        
         {Array.from({ length: MAX_ATTEMPTS }).map((_, rowIndex) => (
           <div key={rowIndex} className="grid grid-cols-5 gap-2">
             {Array.from({ length: WORD_LENGTH }).map((_, colIndex) => {
@@ -356,7 +496,7 @@ export default function WordleGame() {
             <KeyboardKey
               key={key}
               onClick={() => {
-                if (currentGuess.length < WORD_LENGTH) {
+                if (currentGuess.length < WORD_LENGTH && !completedToday) {
                   setCurrentGuess(prev => prev + key);
                 }
               }}
@@ -372,7 +512,7 @@ export default function WordleGame() {
             <KeyboardKey
               key={key}
               onClick={() => {
-                if (currentGuess.length < WORD_LENGTH) {
+                if (currentGuess.length < WORD_LENGTH && !completedToday) {
                   setCurrentGuess(prev => prev + key);
                 }
               }}
@@ -386,7 +526,7 @@ export default function WordleGame() {
         <div className="flex justify-center">
           <KeyboardKey
             onClick={() => {
-              if (currentGuess.length === WORD_LENGTH && !gameOver && !loading) {
+              if (currentGuess.length === WORD_LENGTH && !gameOver && !loading && !completedToday) {
                 if (!wordList.includes(currentGuess.toLowerCase())) {
                   setShake(true);
                   setMessage('Not in word list');
@@ -398,17 +538,14 @@ export default function WordleGame() {
                 }
 
                 if (currentGuess === targetWord) {
-                  setGameOver(true);
-                  setWinAnimation(true);
-                  setMessage('You won!');
+                  handleGameCompletion(true);
                   setGuesses(prev => {
                     const newGuesses = [...prev];
                     newGuesses[currentRow] = currentGuess;
                     return newGuesses;
                   });
                 } else if (currentRow === MAX_ATTEMPTS - 1) {
-                  setGameOver(true);
-                  setMessage(`Game over! The word was ${targetWord}`);
+                  handleGameCompletion(false);
                   setGuesses(prev => {
                     const newGuesses = [...prev];
                     newGuesses[currentRow] = currentGuess;
@@ -436,7 +573,7 @@ export default function WordleGame() {
             <KeyboardKey
               key={key}
               onClick={() => {
-                if (currentGuess.length < WORD_LENGTH) {
+                if (currentGuess.length < WORD_LENGTH && !completedToday) {
                   setCurrentGuess(prev => prev + key);
                 }
               }}
@@ -447,7 +584,7 @@ export default function WordleGame() {
             </KeyboardKey>
           ))}
           <KeyboardKey
-            onClick={() => setCurrentGuess(prev => prev.slice(0, -1))}
+            onClick={() => !completedToday && setCurrentGuess(prev => prev.slice(0, -1))}
             className="bg-red-500 hover:bg-red-600 text-white w-16"
           >
             <FaBackspace />
