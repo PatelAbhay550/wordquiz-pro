@@ -569,7 +569,7 @@ export default function WordleGame() {
             }}
             className="bg-blue-500 hover:bg-blue-600 text-white w-16"
           >
-            <FaCheck className="text-green-600"/>
+            <FaCheck className="bg-green-600 text-white"/>
           </KeyboardKey>
           {'ZXCVBNM'.split('').map((key) => (
             <KeyboardKey
