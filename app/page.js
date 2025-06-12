@@ -152,7 +152,8 @@ export default function WordleGame() {
           "https://gist.githubusercontent.com/dracos/dd0668f281e685bad51479e5acaadb93/raw/6bfa15d263d6d5b63840a8e5b64e04b382fdb079/valid-wordle-words.txt"
         );
         const text = await response.text();
-        const words = text.split('\n').filter(word => word.length === WORD_LENGTH);
+       const words = text.split('\n').map(w => w.trim()).filter(word => word.length === WORD_LENGTH);
+
         setWordList(words);
         
         // 2. Check Firebase for today's word
