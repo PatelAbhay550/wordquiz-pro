@@ -153,7 +153,7 @@ export default function WordleGame() {
         );
         const text = await response.text();
        const words = text.split('\n').map(w => w.trim()).filter(word => word.length === WORD_LENGTH);
-        console.log(words)
+        
 
         setWordList(words);
         
